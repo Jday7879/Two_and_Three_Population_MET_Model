@@ -125,6 +125,26 @@ def save_data_classes_two_substrates(file_name,folder_names, substrate, biomass,
                         , biomass2 = biomass2.current
                         , biomass3 = biomass3.current)
 
+def save_velocity_fields(file_a,folder_names, ux, uy):
+    """
+    :param file_name: name for saved velocity fields
+    :param folder_names: List of folder where file_name is to be saved
+    :param ux: x velocity field
+    :param uy: y velocity field
+    :return: will not return anything, instead saves file in location specified
+    """
+    file_path = Path(os.getcwd())
+    for _ in np.arange(len(folder_names)):
+        file_path = Path(file_path, folder_names[_])
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+
+    file_x = 'Ux_' + file_a
+    file_y = 'Uy_' + file_a
+    np.savetxt(file_path / file_x, ux, fmt='%.18e', delimiter=',')
+    np.savetxt(file_path / file_y, uy, fmt='%.18e', delimiter=',')
+
+
 def loading_data_classes_two_substrate(file_name,folder_names, substrate, biomass, mox, mred, t,substrate2, biomass2,biomass3):
     """
 

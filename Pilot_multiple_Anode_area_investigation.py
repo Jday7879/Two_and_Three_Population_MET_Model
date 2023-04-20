@@ -37,24 +37,21 @@ Lx = 0.32  # length in m
 Ly = 0.45  # length in m
 Lz = 0.25  # length in m
 hrt = 24  # hrt set in any given time units TC is the conversion to seconds
-file_name = 'HRT_{}_ym_32_Rin_8_diff_on_lower_gl_glucose_con_everywhere_side_'.format(int(hrt)) # 'Y_22_s_500_RT_7_days_HRT_12_baffles_1'
-file_name = 'HRT_{}_ym_26_Three_Population_area_optimisation_low_side_'.format(int(hrt))  # 'Y_22_s_500_RT_7_days_HRT_12_baffles_1'
+file_name = 'HRT_{}_ym_26_Three_Population_area_optimisation_side_'.format(int(hrt))  # File name to save output data
 
 hrt *= TC_hour  # The hydraulic retention time converted into seconds
 baffle_length = 91 / 100  # This is the fraction of the tank a baffle takes up in x
 baffle_pairs = 5  # Number of baffle pairs (RHS+LHS) = 1 pair.
 
 # Baffle param
-total_biomass = 8888
 rho = 8000
 # Runtime for reactor system
 RT = 1
-RT *= TC_hour
+RT *= TC_day
 dt_max = 8
 k = 20  # Store data every k min, 1 is every min, 2 every 2 min
 D = 1 / hrt
-stream = True
-anode_side = 'front_loaded'  # can either be 'all', 'influent', 'effluent' 'front_loaded'
+anode_side = 'all'  # can either be 'all', 'influent', 'effluent' 'front_loaded' based on the layout you wish to test
 file_name += anode_side
 print(file_name)
 
@@ -89,57 +86,16 @@ file_a = 'hrt' + str(hrt).replace('.', '_') + '_nx' + str(nx) + '_ny' + str(ny) 
                                                                                                      '_') + '.csv'
 file_x = 'Ux_' + file_a
 file_y = 'Uy_' + file_a
-data_folder = Path(os.getcwd())
+data_folder = Path(os.getcwd(),'Velocity Fields')
 
 try:
     ux = np.genfromtxt(data_folder / file_x, delimiter=',')
     uy = np.genfromtxt(data_folder / file_y, delimiter=',')
+    print('Velocity Files loaded from text files')
 except:
-    psi, ux, uy, resid = solver.steady_state(boundary, psi, nx, ny, dx, dy,
-                                             error=1e-6)  # Using function to determine steady state
-    np.savetxt(data_folder / file_x, ux, fmt='%.18e', delimiter=',')
-    np.savetxt(data_folder / file_y, uy, fmt='%.18e', delimiter=',')
-    ux_i = 0.5 * (ux[0:nx, :] + ux[1:nx + 1, :])
-    uy_i = 0.5 * (uy[:, 0:ny] + uy[:, 1:ny + 1])
-    speed = np.sqrt(ux_i.T ** 2 + uy_i.T ** 2)
-    lw = 10 * speed / speed.max()
-    fig = plt.figure(figsize=(12, 12))
-    plt.streamplot(xx.T, yy.T, ux_i.T, uy_i.T, color=speed, density=1.5, linewidth=1.5, cmap='coolwarm',
-                   arrowstyle='-|>')  # coolwarm')
-    plt.colorbar()
-    plt.xlim((0, Lx))
-    plt.ylim((0, Ly))
-    # print('Velocity fields have been determined and saved in text files \n')
-
-if stream:
-    ux_i = 0.5 * (ux[0:nx, :] + ux[1:nx + 1, :])
-    uy_i = 0.5 * (uy[:, 0:ny] + uy[:, 1:ny + 1])
-    speed = np.sqrt(ux_i.T ** 2 + uy_i.T ** 2)
-    lw = 10 * speed / speed.max()
-    fig, ax = plt.subplots(figsize=(10, 12))
-    strm = ax.streamplot(xx.T, yy.T, ux_i.T, uy_i.T, color=speed, density=4, linewidth=1.5, cmap='coolwarm',
-                         arrowstyle='-|>')
-    cb = plt.colorbar(strm.lines)
-    cb.set_label(label='Velocity (m/s)', fontsize=20)  # size='large')
-    cb.ax.tick_params(labelsize=20)
-    influent_scatter = np.zeros((2, in_out_points))
-    influent_scatter[0, :] = x[1]
-    influent_scatter[1, :] = np.linspace(y[in_start - 1], y[in_start + in_out_points - 1], in_out_points)
-    effluent_scatter = np.zeros((2, in_out_points))
-    effluent_scatter[0, :] = x[-2]
-    effluent_scatter[1, :] = np.linspace(y[out_start - 1], y[out_start + in_out_points - 1], in_out_points)
-    plt.scatter(effluent_scatter[0, :], effluent_scatter[1, :], c='tab:red', s=300 * np.ones((1, 18)),
-                label='Effluent Region')
-    plt.scatter(influent_scatter[0, :], influent_scatter[1, :], c='tab:green', s=300 * np.ones((1, 18)),
-                label='Influent Region')
-    plt.legend(loc=2, fontsize=26)
-    plt.title('HRT {} Hours'.format(int(hrt / TC_hour)), fontsize=30)
-    plt.xlabel('x', fontsize=30)
-    plt.ylabel('y', rotation=0, fontsize=30)
-    plt.xticks(fontsize=26)
-    plt.yticks(fontsize=26)
-    plt.xlim((0, Lx))
-    plt.ylim((0, Ly))
+    psi, ux, uy, resid = solver.steady_state(boundary, psi, nx, ny, dx, dy,error=1e-6)  # Using function to determine steady state
+    save_velocity_fields(file_a,['Velocity Fields'],ux,uy)
+    print('Velocity fields have been determined and saved in text files \n')
 
 # %%
 external = np.zeros(boundary.shape)
@@ -238,7 +194,7 @@ z3.current = z3_space[glucose_loc==1]
 
 s = Substrate(100 * np.ones((nx, ny)), influent=150, diffusion=1e-9, name='Acetate')
 s.current = s.update_influent(baffle_pairs, in_out_points, ny)
-s2 = Substrate(100* np.ones((nx, ny)),influent= 300,diffusion= 1e-9,name = 'Glucose') # 300 or 1500
+s2 = Substrate(100* np.ones((nx, ny)),influent= 1500,diffusion= 1e-9,name = 'Glucose') # 300 or 1500
 s2.current = s2.update_influent(baffle_pairs, in_out_points, ny)
 s2.s_yield = 0.7 ################################################### Latest run using 0.8 as Ac yield
 
@@ -358,25 +314,6 @@ for ii in np.arange(nxy):
 Diffuse_s = Diffuse_s.tocsr()
 LU = sp.sparse.linalg
 
-# bio_diffusion_x = sp.sparse.kron(Iy, Bx).tolil()
-# temp_location = np.zeros((nx+1,ny+1))
-# temp_location[:-1,:-1] = bio_loc
-# for ii in np.arange(nxy):
-#     ix = int((ii) % nx)
-#     iy = int(np.floor((ii) / nx))
-#     # print(ix,iy)
-#     jj = (iy) * (nx + 1) + ix
-#     if temp_location[ix,iy]*temp_location[ix+1,iy] == 0:
-#         bio_diffusion_x[ii,ii] += 1/(dx**2)
-#     if ix == 0:
-#         bio_diffusion_x[ii, ii] += 1 / (dx ** 2)
-#     if ix!=0:
-#         if temp_location[ix-1,iy]*temp_location[ix,iy] == 0:
-#             bio_diffusion_x[ii, ii] += 1 / (dx ** 2)
-#
-#     if temp_location[ix,iy]+temp_location[ix+1,iy] == 0:
-#         bio_diffusion_x[ii, ii] -= 1 / (dx ** 2)
-
 bio_diffusion_x = 0*1e-9 * bio_diffusion_x.tocsr()
 z1.biomass_diffusion(bio_loc,bio_diffusion_x)
 z2.biomass_diffusion(glucose_loc,bio_diffusion_x)
@@ -400,9 +337,6 @@ dt = min(dt_max, 1 / (ux_max / dx + uy_max / dy), (dx ** 2 * dy ** 2) / (
 
 ii = 0
 rk = np.array([[0, 1 / 2, 1 / 2, 1], [0, 1, 1, 1], [1, 2, 2, 1]]).T
-
-# These have been taken out of loop as they remain constant and independent of Z
-
 bound_out = np.zeros(s.current.shape)
 bound_in = np.zeros(s.current.shape)
 bound_out[-1, :] = 1
